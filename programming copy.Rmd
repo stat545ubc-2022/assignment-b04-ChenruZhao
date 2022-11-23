@@ -1,0 +1,204 @@
+---
+title: "Assignment B-4 Option A: Strings and/or Functional Programming"
+output: github_document
+---
+
+1. Install the required package
+
+<!-- -->
+
+    install.packages("palmerpenguins")
+    install.packages("tidytext")
+    install.packages("ggwordcloud")
+
+1.  Load the packages below.
+
+```{r}
+library(janeaustenr)
+library(tidytext)
+library(tidyverse)
+library(ggwordcloud)
+library(testthat)
+```
+
+2. Exercise 1: Remove “stop words” and make a plot of the most common words in the book (Pride & Prejudice from janeaustenr).
+
+# To understand the structure of the austen_books
+```{r}
+print(austen_books()) # print the header and first 10 rows of austen_books() 
+```
+
+# Set up the data as we needed
+```{r}
+words_in_prideprejudice <- austen_books() %>%
+  unnest_tokens(word, text) %>% # split text into tokens(words)
+  filter(book == "Pride & Prejudice") %>% # select the book Pride & Prejudice
+  count(word, sort = TRUE) %>% # count the number of each word in the book Pride & Prejudice
+  anti_join(stop_words, by = "word") # remove stop words
+words_in_prideprejudice
+```
+
+# Get the most common words for bar plot
+```{r}
+common_words_for_bar <- words_in_prideprejudice %>%
+  # I choose less common words for bar plot, otherwise the plot will be messy
+  filter(n > 100) # get the words whose number exceeds 100
+common_words_for_bar
+```
+
+# Draw a bar plot for the most common words in Pride & Prejudice
+```{r}
+common_word_plot <- ggplot(common_words_for_bar, aes(x = word, y = n)) + # ggplot where x = word, y = n
+  geom_bar(stat="identity") + # draw bar plot 
+  labs(x = "Word", y = "Number of the word", title = "Distribution of the most common word")
+common_word_plot + coord_flip()
+```
+
+```{r}
+common_words_for_cloud <- words_in_prideprejudice %>%
+  filter(n > 50) # get the words whose number exceeds 100
+common_words_for_cloud
+```
+
+# Draw a word cloud for the most common words in Pride & Prejudice
+```{r}
+ggplot(common_words_for_cloud, aes(label = word, size = n, 
+                                   color = factor(sample.int(20, nrow(common_words_for_cloud), replace = TRUE)))) +
+  geom_text_wordcloud(shape = "circle") +
+  scale_size_area(max_size = 10) + 
+  theme_minimal() 
+```
+
+3. Exercise 2: Make a function that converts words to your own version of Pig Latin.
+
+```{r}
+#' Convert Words to My Pig Latin Version
+#'
+#' The function can convert words to my version of Pig Latin
+#' For words that end with consonant sounds, all letters after the last vowel are placed at the beginning of the word sequence.
+#' When words end with consonant clusters (multiple consonants that form one sound), the whole sound is added to the beginning.
+#' For words end with vowel sounds, one moves the last vowel(s) along with the consonant clusters to the beginning. 
+#' If the penultimate character is also a vowel, only the last vowel is moved.
+#' Add “wow” to the end of the word
+#'
+#' @param words - An English string that you want to transfer to the Pig Latin version 
+#' 
+#' @return A string that in my Pig Latin version (all words will be in the lowercase)
+#' 
+#' @examples
+#' pig_latin("Example")
+#' pig_latin("Chenru Zhao")
+#' pig_latin("this is a example")
+
+pig_latin <- function(words) {
+  if(!assertthat::is.string(words)) {
+    stop("The input should be a string.")
+  }
+  
+  if(words == "") {
+    stop("The input is empty.")
+  }
+  
+  vowel_sounds <- c("a", "e", "i", "o", "u")
+  is_vowel_sound <- function(c) {
+    c %in% c(vowel_sounds, toupper(vowel_sounds))
+  }
+  
+  get_last_vowel_index <- function(word) {
+    char_list <- stringr::str_split(word, "")[[1]]
+    purrr::detect_index(char_list, is_vowel_sound, .dir = "backward")
+  }
+  
+  words_list <- strsplit(words, "\\s+")
+  pig_lation_result <- ""
+  for(word in words_list[[1]]) {
+    word <- tolower(word)
+    word_count <- nchar(word)
+    last_vowel_index <- get_last_vowel_index(word)
+    if(last_vowel_index == word_count && last_vowel_index != 1) {
+      word <- paste((str_sub(word, word_count, word_count)), (str_sub(word, 1, word_count-1)), sep = "")
+      last_vowel_index <- get_last_vowel_index(word)
+    }
+    pig_latin_word <- paste((str_sub(word, last_vowel_index+1)), (str_sub(word, 1, last_vowel_index)), "wow", sep = "")
+    if(pig_lation_result == "") {
+      pig_lation_result <- paste(pig_lation_result, pig_latin_word, sep = "")
+    } else {
+      pig_lation_result <- paste(pig_lation_result, pig_latin_word)
+    }
+  }
+  
+  return(pig_lation_result)
+}
+```
+
+```{r}
+vowel_sounds <- c("a", "e", "i", "o", "u")
+  is_vowel_sound <- function(c) {
+    c %in% c(vowel_sounds)
+  }
+  
+  get_last_vowel_index <- function(word) {
+    char_list <- stringr::str_split(word, "")[[1]]
+    #print(char_list)
+    purrr::detect_index(char_list, is_vowel_sound, .dir = "backward")
+  }
+  
+  words_list <- stringr::str_split("test  pie receive", "\\s+")
+  pig_lation_result <- ""
+  for(word in words_list[[1]]) {
+    word_count <- nchar(word)
+    word <- tolower(word)
+    #char_list <- stringr::str_split(word, "")[[1]]
+    last_vowel_index <- get_last_vowel_index(word)
+    #print(last_vowel_index)
+    if(last_vowel_index == word_count && last_vowel_index != 1) {
+      #print(word)
+      word <- paste((str_sub(word, word_count, word_count)), (str_sub(word, 1, word_count-1)), sep = "")
+      #print(word)
+      last_vowel_index <- get_last_vowel_index(word)
+      #print(last_vowel_index)
+    }
+    pig_latin_word <- paste((str_sub(word, last_vowel_index+1)), (str_sub(word, 1, last_vowel_index)), "wow", sep = "")
+    #print(pig_latin_word)
+    if(pig_lation_result == "") {
+      pig_lation_result <- paste(pig_lation_result, pig_latin_word, sep = "")
+    } else {
+      pig_lation_result <- paste(pig_lation_result, pig_latin_word)
+    }
+    #print(pig_lation_result)
+  }
+  print("result")
+  print(pig_lation_result)
+```
+
+# Examples of my pig_latin function
+```{r}
+result1 <- pig_latin("Example")
+print(result1)
+```
+
+```{r}
+result2 <- pig_latin("Chenru Zhao")
+print(result2)
+```
+
+```{r}
+result3 <- pig_latin("This is a example")
+print(result3)
+```
+
+# Test
+```{r}
+test_that("pig_latin works", {
+  # 
+  expect_equal(pig_latin("I receive a pie"), "iwow vereceiwow awow epiwow")
+  # 
+  expect_equal(pig_latin("happy"), "ppyhawow")
+  # 
+  expect_equal(pig_latin("hey"), "yhewow")
+  #
+  expect_error(pig_latin(c(1,2,3,4,5)))
+  # 
+  expect_error(pig_latin(""))
+}) 
+```
